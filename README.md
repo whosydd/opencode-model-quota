@@ -11,8 +11,7 @@ OpenCode TUI plugin for checking model or subscription usage.
 
 | Command | Description |
 |---------|-------------|
-| `/model-usage` | Show cached usage (or fetch if stale) |
-| `/model-usage-refresh` | Force a live refresh |
+| `/model-usage` | Fetch and show current usage |
 
 ## Install
 
@@ -32,14 +31,12 @@ Then add to your `tui.json`:
       {
         "opencodeGo": {
           "workspaceId": "wrk_your_workspace_id",
-          "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}",
-          "refreshIntervalMinutes": 5
+          "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}"
         },
         "githubCopilot": {
           "username": "your-github-login",
           "token": "{env:GITHUB_COPILOT_TOKEN}",
-          "refreshIntervalMinutes": 5,
-          "monthlyAllowance": 300
+          "plan": "pro"
         }
       }
     ]
@@ -59,7 +56,7 @@ export OPENCODE_GO_AUTH_COOKIE="Fe26.2**your_auth_cookie"
 
 export GITHUB_COPILOT_USERNAME="your-github-login"
 export GITHUB_COPILOT_TOKEN="github_pat_your_token"
-export GITHUB_COPILOT_MONTHLY_ALLOWANCE="300"  # 300 for Pro, 1500 for Pro+
+export GITHUB_COPILOT_PLAN="pro"  # "pro" or "pro+"
 ```
 
 ### Config File
@@ -78,12 +75,13 @@ Create `opencode-model-usage.json` at one of these locations:
   "githubCopilot": {
     "username": "your-github-login",
     "token": "{env:GITHUB_COPILOT_TOKEN}",
-    "monthlyAllowance": 300
+    "plan": "pro"
   }
 }
 ```
 
 String values support `{env:VARIABLE_NAME}` placeholders.
+`githubCopilot.plan` only supports `"pro"` and `"pro+"`, matching GitHub Copilot's official plan display. It defaults to `"pro"` when omitted.
 
 ## Security
 

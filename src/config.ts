@@ -3,37 +3,33 @@ import os from "node:os"
 import path from "node:path"
 
 const CONFIG_FILE = "opencode-model-usage.json"
-const DEFAULT_REFRESH_MINUTES = 5
 const ENV_REFERENCE_PATTERN = /^\{env:([A-Za-z_][A-Za-z0-9_]*)\}$/
 const ENV_PLACEHOLDER_PATTERN = /^\{env:(.+)\}$/
 
 export type OpenCodeGoConfig = {
   workspaceId: string
   authCookie: string
-  refreshIntervalMinutes: number
 }
+
+export type GitHubCopilotPlan = "pro" | "pro+"
 
 export type GitHubCopilotConfig = {
   username: string
   token: string
-  refreshIntervalMinutes: number
-  monthlyAllowance: number | null
+  plan: GitHubCopilotPlan
 }
 
 export type PluginConfigOverrides = Partial<{
   workspaceId: unknown
   authCookie: unknown
-  refreshIntervalMinutes: unknown
   opencodeGo: {
     workspaceId?: unknown
     authCookie?: unknown
-    refreshIntervalMinutes?: unknown
   }
   githubCopilot: {
     username?: unknown
     token?: unknown
-    refreshIntervalMinutes?: unknown
-    monthlyAllowance?: unknown
+    plan?: unknown
   }
 }>
 
@@ -45,7 +41,6 @@ type ConfigFile = {
   githubCopilot?: Partial<GitHubCopilotConfig>
   workspaceId?: string
   authCookie?: string
-  refreshIntervalMinutes?: number
 }
 
 export function getConfigPaths(): string[] {
@@ -83,9 +78,6 @@ export function loadOptionalOpenCodeGoConfig(overrides?: OpenCodeGoConfigOverrid
   const merged = {
     workspaceId,
     authCookie,
-    refreshIntervalMinutes: parseRefreshMinutes(
-      optionConfig.refreshIntervalMinutes ?? process.env.OPENCODE_GO_REFRESH_MINUTES ?? fileConfig.refreshIntervalMinutes,
-    ),
   }
 
   if (!merged.workspaceId || !merged.authCookie) {
@@ -110,7 +102,6 @@ export function loadOptionalOpenCodeGoConfig(overrides?: OpenCodeGoConfigOverrid
   return {
     workspaceId: merged.workspaceId,
     authCookie: merged.authCookie,
-    refreshIntervalMinutes: merged.refreshIntervalMinutes,
   }
 }
 
@@ -141,15 +132,8 @@ export function loadOptionalGitHubCopilotConfig(
   const merged = {
     username,
     token,
-    refreshIntervalMinutes: parseRefreshMinutes(
-      optionConfig.refreshIntervalMinutes ??
-        process.env.GITHUB_COPILOT_REFRESH_MINUTES ??
-        fileConfig.refreshIntervalMinutes,
-    ),
-    monthlyAllowance: parseOptionalPositiveInteger(
-      optionConfig.monthlyAllowance ??
-        process.env.GITHUB_COPILOT_MONTHLY_ALLOWANCE ??
-        fileConfig.monthlyAllowance,
+    plan: parsePlan(
+      optionConfig.plan ?? process.env.GITHUB_COPILOT_PLAN ?? fileConfig.plan,
     ),
   }
 
@@ -175,8 +159,7 @@ export function loadOptionalGitHubCopilotConfig(
   return {
     username: merged.username,
     token: merged.token,
-    refreshIntervalMinutes: merged.refreshIntervalMinutes,
-    monthlyAllowance: merged.monthlyAllowance ?? null,
+    plan: merged.plan,
   }
 }
 
@@ -210,19 +193,6 @@ function parseConfigFile(filePath: string): ConfigFile {
   }
 }
 
-function parseRefreshMinutes(value: string | number | undefined): number {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number.parseInt(value, 10)
-    if (Number.isFinite(parsed) && parsed > 0) return parsed
-  }
-
-  return DEFAULT_REFRESH_MINUTES
-}
-
 function readOpenCodeGoConfigFile(): Partial<OpenCodeGoConfig> {
   const parsed = readConfigFile()
   const opencodeGo = parsed.opencodeGo ?? parsed
@@ -230,7 +200,6 @@ function readOpenCodeGoConfigFile(): Partial<OpenCodeGoConfig> {
   return {
     workspaceId: asTrimmedString(opencodeGo.workspaceId),
     authCookie: asTrimmedString(opencodeGo.authCookie),
-    refreshIntervalMinutes: parseOptionalRefreshMinutes(opencodeGo.refreshIntervalMinutes),
   }
 }
 
@@ -241,8 +210,7 @@ function readGitHubCopilotConfigFile(): Partial<GitHubCopilotConfig> {
   return {
     username: asTrimmedString(githubCopilot?.username),
     token: asTrimmedString(githubCopilot?.token),
-    refreshIntervalMinutes: parseOptionalRefreshMinutes(githubCopilot?.refreshIntervalMinutes),
-    monthlyAllowance: parseOptionalPositiveInteger(githubCopilot?.monthlyAllowance),
+    plan: asTrimmedStringOrValue(githubCopilot?.plan) as GitHubCopilotPlan | undefined,
   }
 }
 
@@ -254,9 +222,6 @@ function readOpenCodeGoOverrides(overrides: OpenCodeGoConfigOverrides | undefine
   return {
     workspaceId: asTrimmedString(overrides.workspaceId ?? nested?.workspaceId),
     authCookie: asTrimmedString(overrides.authCookie ?? nested?.authCookie),
-    refreshIntervalMinutes: parseOptionalRefreshMinutes(
-      overrides.refreshIntervalMinutes ?? nested?.refreshIntervalMinutes,
-    ),
   }
 }
 
@@ -265,15 +230,17 @@ function readGitHubCopilotOverrides(
 ): Partial<GitHubCopilotConfig> {
   if (!overrides || typeof overrides !== "object") return {}
 
-  const nested =
-    typeof overrides.githubCopilot === "object" && overrides.githubCopilot ? overrides.githubCopilot : undefined
+  const nested = typeof overrides.githubCopilot === "object" && overrides.githubCopilot ? overrides.githubCopilot : undefined
 
   return {
     username: asTrimmedString(nested?.username),
     token: asTrimmedString(nested?.token),
-    refreshIntervalMinutes: parseOptionalRefreshMinutes(nested?.refreshIntervalMinutes),
-    monthlyAllowance: parseOptionalPositiveInteger(nested?.monthlyAllowance),
+    plan: asTrimmedStringOrValue(nested?.plan) as GitHubCopilotPlan | undefined,
   }
+}
+
+function asTrimmedStringOrValue(value: unknown): unknown {
+  return typeof value === "string" ? asTrimmedString(value) : value
 }
 
 function asTrimmedString(value: unknown): string | undefined {
@@ -294,49 +261,27 @@ function asTrimmedString(value: unknown): string | undefined {
 
   if (looksLikeEnvPlaceholder(trimmed)) {
     throw new Error(
-      `Invalid environment placeholder \"${trimmed}\". Use {env:VARIABLE_NAME}; shell commands like {env:$(gh auth token)} are not supported.`,
+      `Invalid environment placeholder "${trimmed}". Use {env:VARIABLE_NAME}; shell commands like {env:$(gh auth token)} are not supported.`,
     )
   }
 
   return trimmed
 }
 
-function parseOptionalRefreshMinutes(value: unknown): number | undefined {
-  if (value === undefined) return undefined
-  if (typeof value === "number") {
-    return parseRefreshMinutes(value)
+function parsePlan(value: unknown): GitHubCopilotPlan {
+  if (value === undefined || value === null) return "pro"
+
+  const normalized = typeof value === "string" ? value.toLowerCase().trim() : String(value)
+
+  if (normalized === "pro+") {
+    return "pro+"
   }
 
-  if (typeof value === "string") {
-    const resolved = asTrimmedString(value)
-    if (resolved === undefined) return undefined
-    return parseRefreshMinutes(resolved)
+  if (normalized === "pro") {
+    return "pro"
   }
 
-  return undefined
-}
-
-function parseOptionalPositiveInteger(value: unknown): number | undefined {
-  if (value === undefined) return undefined
-
-  if (typeof value === "number") {
-    if (Number.isInteger(value) && value > 0) return value
-    throw new Error("GITHUB_COPILOT_MONTHLY_ALLOWANCE must be a positive integer.")
-  }
-
-  if (typeof value === "string") {
-    const resolved = asTrimmedString(value)
-    if (resolved === undefined) return undefined
-    const parsed = Number.parseInt(resolved, 10)
-
-    if (Number.isInteger(parsed) && parsed > 0 && `${parsed}` === resolved) {
-      return parsed
-    }
-
-    throw new Error("GITHUB_COPILOT_MONTHLY_ALLOWANCE must be a positive integer.")
-  }
-
-  throw new Error("GITHUB_COPILOT_MONTHLY_ALLOWANCE must be a positive integer.")
+  throw new Error("GITHUB_COPILOT_PLAN must be \"pro\" or \"pro+\".")
 }
 
 function parseEnvReference(value: string): string | null {

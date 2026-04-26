@@ -1,4 +1,3 @@
-import crypto from "node:crypto"
 import {
   loadOpenCodeGoConfig,
   type OpenCodeGoConfig,
@@ -15,51 +14,13 @@ export type OpenCodeGoSnapshot = {
   weekly: OpenCodeGoWindow | null
   monthly: OpenCodeGoWindow | null
   fetchedAt: number
-  stale?: boolean
-  cached?: boolean
 }
-
-type CacheEntry = {
-  configFingerprint: string
-  expiresAt: number
-  snapshot: OpenCodeGoSnapshot
-}
-
-let cache: CacheEntry | null = null
 
 export async function getOpenCodeGoUsage(
-  forceRefresh = false,
   overrides?: OpenCodeGoConfigOverrides,
 ): Promise<OpenCodeGoSnapshot> {
   const config = loadOpenCodeGoConfig(overrides)
-  const now = Date.now()
-  const configFingerprint = createConfigFingerprint(config)
-
-  if (!forceRefresh && cache && cache.configFingerprint === configFingerprint && cache.expiresAt > now) {
-    return {
-      ...cache.snapshot,
-      cached: true,
-    }
-  }
-
-  try {
-    const snapshot = await fetchOpenCodeGoUsage(config)
-    cache = {
-      configFingerprint,
-      snapshot,
-      expiresAt: now + config.refreshIntervalMinutes * 60_000,
-    }
-    return snapshot
-  } catch (error) {
-    if (cache && cache.configFingerprint === configFingerprint) {
-      return {
-        ...cache.snapshot,
-        stale: true,
-      }
-    }
-
-    throw error
-  }
+  return fetchOpenCodeGoUsage(config)
 }
 
 async function fetchOpenCodeGoUsage(config: OpenCodeGoConfig): Promise<OpenCodeGoSnapshot> {
@@ -118,7 +79,7 @@ function extractWindow(html: string, fieldName: string): OpenCodeGoWindow | null
 function extractObjectLiteral(html: string, fieldName: string): string | null {
   const patterns = [
     new RegExp(`${escapeRegExp(fieldName)}\\s*:\\s*\\$R\\[\\d+\\]\\s*=\\s*\\{`),
-    new RegExp(`\"${escapeRegExp(fieldName)}\"\\s*:\\s*\\{`),
+    new RegExp(`"${escapeRegExp(fieldName)}"\\s*:\\s*\\{`),
     new RegExp(`${escapeRegExp(fieldName)}\\s*:\\s*\\{`),
     new RegExp(`${escapeRegExp(fieldName)}\\s*=\\s*\\{`),
   ]
@@ -214,12 +175,4 @@ function asNumber(value: unknown): number | null {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
-function createConfigFingerprint(config: OpenCodeGoConfig): string {
-  return JSON.stringify({
-    workspaceId: config.workspaceId,
-    authCookie: crypto.createHash("sha256").update(config.authCookie).digest("hex"),
-    refreshIntervalMinutes: config.refreshIntervalMinutes,
-  })
 }

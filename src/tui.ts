@@ -4,39 +4,36 @@ import {
   loadOptionalOpenCodeGoConfig,
   type PluginConfigOverrides,
 } from "./config.js"
+import {
+  formatGitHubCopilotMessage,
+  formatOpenCodeGoMessage,
+  formatUsageLoadingMessage,
+  formatUsageMessage,
+} from "./format.js"
 import { getGitHubCopilotUsage } from "./github-copilot.js"
-import { formatGitHubCopilotMessage, formatOpenCodeGoMessage, formatUsageMessage } from "./format.js"
 import { getOpenCodeGoUsage } from "./opencode-go.js"
 
 const COMMAND_VALUE = "model-usage.show"
-const REFRESH_COMMAND_VALUE = "model-usage.refresh"
+const LOADING_FRAMES = ["|", "/", "-", "\\"]
+
+let activeUsageRequestId = 0
+let stopActiveLoading: (() => void) | undefined
 
 const tui: TuiPlugin = async (api, options) => {
   const configOverrides = options as PluginConfigOverrides | undefined
 
   api.command.register(() => [
     {
-      title: "Model Usage",
+      title: "Model Usage Overview",
       value: COMMAND_VALUE,
-      description: "Show configured model usage",
+      description: "Show AI quota and subscription usage",
       category: "Usage",
       suggested: true,
       slash: {
         name: "model-usage",
         aliases: ["go-usage", "copilot-usage"],
       },
-      onSelect: () => showUsageDialog(api, configOverrides, false),
-    },
-    {
-      title: "Model Usage Refresh",
-      value: REFRESH_COMMAND_VALUE,
-      description: "Force refresh configured model usage",
-      category: "Usage",
-      slash: {
-        name: "model-usage-refresh",
-        aliases: ["go-usage-refresh", "copilot-usage-refresh"],
-      },
-      onSelect: () => showUsageDialog(api, configOverrides, true),
+      onSelect: () => showUsageDialog(api, configOverrides),
     },
   ])
 }
@@ -44,31 +41,81 @@ const tui: TuiPlugin = async (api, options) => {
 async function showUsageDialog(
   api: Parameters<TuiPlugin>[0],
   configOverrides: PluginConfigOverrides | undefined,
-  forceRefresh: boolean,
 ): Promise<void> {
+  stopActiveLoading?.()
+
+  const requestId = ++activeUsageRequestId
+  let loadingFrame = 0
+  let loadingTimer: ReturnType<typeof setInterval> | undefined
+  const stopLoading = () => {
+    if (loadingTimer) {
+      clearInterval(loadingTimer)
+      loadingTimer = undefined
+    }
+
+    if (stopActiveLoading === stopLoading) {
+      stopActiveLoading = undefined
+    }
+  }
+  const closeLoadingDialog = () => {
+    if (activeUsageRequestId === requestId) {
+      activeUsageRequestId++
+    }
+
+    stopLoading()
+
+    api.ui.dialog.clear()
+  }
+  const renderLoadingDialog = () => {
+    api.ui.dialog.replace(() =>
+      api.ui.DialogAlert({
+        title: "Model Usage Overview",
+        message: formatUsageLoadingMessage(LOADING_FRAMES[loadingFrame]),
+        onConfirm: closeLoadingDialog,
+      }),
+    )
+  }
+
+  stopActiveLoading = stopLoading
+  renderLoadingDialog()
+  loadingTimer = setInterval(() => {
+    if (activeUsageRequestId !== requestId) return
+
+    loadingFrame = (loadingFrame + 1) % LOADING_FRAMES.length
+    renderLoadingDialog()
+  }, 180)
+
   try {
-    const message = await buildUsageMessage(forceRefresh, configOverrides)
+    const message = await buildUsageMessage(configOverrides)
+
+    if (activeUsageRequestId !== requestId) return
+    stopLoading()
 
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Usage",
+        title: "Model Usage Overview",
         message,
         onConfirm: () => api.ui.dialog.clear(),
       }),
     )
   } catch (error) {
+    if (activeUsageRequestId !== requestId) return
+
+    stopLoading()
+
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Usage Error",
+        title: "Model Usage Overview Error",
         message: error instanceof Error ? error.message : "Failed to fetch usage.",
         onConfirm: () => api.ui.dialog.clear(),
       }),
     )
+  } finally {
+    stopLoading()
   }
 }
 
 async function buildUsageMessage(
-  forceRefresh: boolean,
   configOverrides: PluginConfigOverrides | undefined,
 ): Promise<string> {
   const tasks: Array<Promise<string>> = []
@@ -76,7 +123,7 @@ async function buildUsageMessage(
 
   try {
     if (loadOptionalOpenCodeGoConfig(configOverrides)) {
-      tasks.push(getOpenCodeGoUsage(forceRefresh, configOverrides).then(formatOpenCodeGoMessage))
+      tasks.push(getOpenCodeGoUsage(configOverrides).then(formatOpenCodeGoMessage))
     }
   } catch (error) {
     errors.push(errorMessage(error))
@@ -84,7 +131,7 @@ async function buildUsageMessage(
 
   try {
     if (loadOptionalGitHubCopilotConfig(configOverrides)) {
-      tasks.push(getGitHubCopilotUsage(forceRefresh, configOverrides).then(formatGitHubCopilotMessage))
+      tasks.push(getGitHubCopilotUsage(configOverrides).then(formatGitHubCopilotMessage))
     }
   } catch (error) {
     errors.push(errorMessage(error))

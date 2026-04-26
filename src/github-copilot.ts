@@ -1,4 +1,3 @@
-import crypto from "node:crypto"
 import {
   loadGitHubCopilotConfig,
   type GitHubCopilotConfig,
@@ -55,8 +54,6 @@ export type GitHubCopilotSnapshot = {
   resetAt: number
   fetchedAt: number
   source: "quota-snapshot" | "billing"
-  stale?: boolean
-  cached?: boolean
 }
 
 type UsageTotals = {
@@ -65,47 +62,16 @@ type UsageTotals = {
   billableRequests: number
 }
 
-type CacheEntry = {
-  configFingerprint: string
-  expiresAt: number
-  snapshot: GitHubCopilotSnapshot
+const PLAN_ALLOWANCE: Record<GitHubCopilotConfig["plan"], number> = {
+  pro: 300,
+  "pro+": 1500,
 }
 
-let cache: CacheEntry | null = null
-
 export async function getGitHubCopilotUsage(
-  forceRefresh = false,
   overrides?: GitHubCopilotConfigOverrides,
 ): Promise<GitHubCopilotSnapshot> {
   const config = loadGitHubCopilotConfig(overrides)
-  const now = Date.now()
-  const configFingerprint = createConfigFingerprint(config)
-
-  if (!forceRefresh && cache && cache.configFingerprint === configFingerprint && cache.expiresAt > now) {
-    return {
-      ...cache.snapshot,
-      cached: true,
-    }
-  }
-
-  try {
-    const snapshot = await fetchGitHubCopilotUsage(config)
-    cache = {
-      configFingerprint,
-      snapshot,
-      expiresAt: now + config.refreshIntervalMinutes * 60_000,
-    }
-    return snapshot
-  } catch (error) {
-    if (cache && cache.configFingerprint === configFingerprint) {
-      return {
-        ...cache.snapshot,
-        stale: true,
-      }
-    }
-
-    throw error
-  }
+  return fetchGitHubCopilotUsage(config)
 }
 
 async function fetchGitHubCopilotUsage(config: GitHubCopilotConfig): Promise<GitHubCopilotSnapshot> {
@@ -233,11 +199,11 @@ function toQuotaSnapshot(
 
 function toBillingSnapshot(
   payload: GitHubBillingUsageResponse,
-  config: Pick<GitHubCopilotConfig, "username" | "monthlyAllowance">,
+  config: Pick<GitHubCopilotConfig, "username" | "plan">,
 ): GitHubCopilotSnapshot {
   const usageMonth = parseUsageMonth(payload.timePeriod)
   const totals = aggregateUsageTotals(payload.usageItems)
-  const monthlyAllowance = resolveMonthlyAllowance(config.monthlyAllowance, totals)
+  const monthlyAllowance = resolveMonthlyAllowance(config.plan, totals)
 
   return {
     username: asTrimmedString(payload.user) ?? config.username,
@@ -329,26 +295,12 @@ function resolveUsedPremiumRequests(
   return Math.max(0, overageRequests)
 }
 
-function resolveMonthlyAllowance(configuredAllowance: number | null, totals: UsageTotals): number {
-  if (configuredAllowance != null && configuredAllowance > 0) {
-    return configuredAllowance
-  }
-
+function resolveMonthlyAllowance(plan: GitHubCopilotConfig["plan"], totals: UsageTotals): number {
   if (totals.billableRequests > 0 && totals.includedRequests > 0) {
     return Math.round(totals.includedRequests)
   }
 
-  if (totals.includedRequests > 300) {
-    return 1500
-  }
-
-  throw new Error(
-    [
-      "GitHub Copilot monthly allowance is required to show premium request usage as a percentage.",
-      "Set githubCopilot.monthlyAllowance or GITHUB_COPILOT_MONTHLY_ALLOWANCE.",
-      "Use 300 for Copilot Pro or 1500 for Copilot Pro+.",
-    ].join(" "),
-  )
+  return PLAN_ALLOWANCE[plan]
 }
 
 function toUsagePercent(
@@ -388,13 +340,4 @@ function asMonth(value: unknown): number | null {
   const month = asPositiveInteger(value)
   if (month && month >= 1 && month <= 12) return month
   return null
-}
-
-function createConfigFingerprint(config: GitHubCopilotConfig): string {
-  return JSON.stringify({
-    username: config.username,
-    token: crypto.createHash("sha256").update(config.token).digest("hex"),
-    refreshIntervalMinutes: config.refreshIntervalMinutes,
-    monthlyAllowance: config.monthlyAllowance,
-  })
 }

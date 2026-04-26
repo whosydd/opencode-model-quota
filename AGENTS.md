@@ -8,7 +8,7 @@ OpenCode TUI plugin that shows model/subscription usage from multiple providers 
 
 - OpenCode Go rolling, weekly, and monthly subscription usage (HTML scraping)
 - GitHub Copilot monthly premium request usage, allowance, and overage
-- Two slash commands: `/model-usage` (cached) and `/model-usage-refresh` (force live)
+- Single slash command: `/model-usage` - always fetches fresh data
 
 ## Build & Verify
 
@@ -24,15 +24,15 @@ No test suite exists yet. Verify by building and type-checking.
 
 - `src/tui.ts`: TUI plugin entrypoint. Registers slash commands, orchestrates provider calls, renders dialogs.
 - `src/config.ts`: Config loading with priority: `tui.json` plugin options → env vars → `opencode-model-usage.json` file.
-- `src/opencode-go.ts`: HTML fetch + parse for OpenCode Go usage. In-memory cache with stale fallback.
-- `src/github-copilot.ts`: GitHub API fetcher. Tries IDE quota snapshot first, falls back to personal billing usage endpoint. In-memory cache with stale fallback.
+- `src/opencode-go.ts`: HTML fetch + parse for OpenCode Go usage.
+- `src/github-copilot.ts`: GitHub API fetcher. Tries IDE quota snapshot first, falls back to personal billing usage endpoint.
 - `src/format.ts`: Text formatting for TUI dialog output.
 - `docs/project-plan.md`: Roadmap (phases 0-3).
 
 ## Architecture Rules
 
 - Keep provider logic isolated. `tui.ts` should not know how data is fetched.
-- Each provider owns its own fetch, parse, cache, and error handling.
+- Each provider owns its own fetch, parse, and error handling.
 - `format.ts` is the single place for user-facing text; providers return structured data, not strings.
 - Do not log secrets (cookies, tokens) anywhere.
 - Prefer environment variables over config files for credentials.
@@ -49,13 +49,14 @@ No test suite exists yet. Verify by building and type-checking.
 - **Fallback**: `GET /users/{username}/settings/billing/premium_request/usage` (personal billing only; org-managed licenses are not included).
 - Quota snapshot 404s are silently ignored and trigger billing fallback.
 - Auth/permission/rate-limit errors from quota snapshot are **surfaced directly**, not masked by billing fallback errors.
-- `monthlyAllowance` is required for billing fallback to compute percentages; set to `300` (Copilot Pro) or `1500` (Copilot Pro+).
+- `plan` is used for billing fallback to compute percentages; only `"pro"` (300 requests) and `"pro+"` (1500 requests) are supported, matching GitHub Copilot's official plan display. Defaults to `"pro"`.
 
 ## Config & Secrets
 
 - Config file name: `opencode-model-usage.json`
 - Valid locations: `~/.config/opencode/`, `~/.opencode/`, `<project>/.opencode/`
 - String values support `{env:VARIABLE_NAME}` placeholders. Shell command placeholders like `{env:$(gh auth token)}` are explicitly rejected.
+- `refreshIntervalMinutes` is not supported (always fetches fresh data).
 - Never commit tokens or cookies to the repo.
 
 ## Constraints

@@ -1,7 +1,10 @@
-import type { OpenCodeGoSnapshot } from "./opencode-go.js"
 import type { GitHubCopilotSnapshot } from "./github-copilot.js"
+import type { OpenCodeGoSnapshot } from "./opencode-go.js"
 
 export const BAR_SEGMENTS = 24
+
+const CARD_DIVIDER = "-".repeat(40)
+const RIGHT_ALIGN_SEPARATOR = "\t"
 
 export type UsageSeverity = "success" | "warning" | "error"
 
@@ -17,9 +20,7 @@ export type UsageWindowView = {
 export type UsageDialogView = {
   providerLabel: string
   categoryLabel: string
-  statusLabel: string
   updatedAt: string
-  note?: string
   windows: UsageWindowView[]
 }
 
@@ -41,74 +42,100 @@ export function buildUsageDialogView(snapshot: OpenCodeGoSnapshot): UsageDialogV
   return {
     providerLabel: "OpenCode Go",
     categoryLabel: "subscription",
-    statusLabel: snapshot.stale ? "cached (stale)" : snapshot.cached ? "cached" : "live",
     updatedAt: formatTimestamp(snapshot.fetchedAt),
-    note: snapshot.stale ? "live refresh failed" : undefined,
     windows,
   }
 }
 
 export function formatOpenCodeGoMessage(snapshot: OpenCodeGoSnapshot): string {
   const view = buildUsageDialogView(snapshot)
-  const windows = view.windows.map(formatWindowBlock).join("\n")
-  const parts = [formatMessageHeader(view.providerLabel, view.categoryLabel, view.statusLabel, view.updatedAt), "", windows]
+  const parts = [formatMessageHeader(view.providerLabel, view.categoryLabel, view.updatedAt), ""]
 
-  if (view.note) {
-    parts.push("", view.note)
+  if (view.windows.length > 0) {
+    parts.push(...view.windows.map(formatWindowRow))
+  } else {
+    parts.push(formatMetricLine("Usage", "No usage windows available"))
   }
 
   return parts.join("\n")
 }
 
 export function formatGitHubCopilotMessage(snapshot: GitHubCopilotSnapshot): string {
-  const statusLabel = snapshot.stale ? "cached (stale)" : snapshot.cached ? "cached" : "live"
-  const usageLine =
+  const usageText =
     snapshot.monthlyAllowance === null
-      ? `Usage: ${formatCount(snapshot.usedPremiumRequests)} (unlimited)`
-      : `Usage: ${formatCount(snapshot.usedPremiumRequests)} / ${formatCount(snapshot.monthlyAllowance)} (${formatPercent(snapshot.usagePercent)})`
+      ? `${formatCount(snapshot.usedPremiumRequests)} used (unlimited)`
+      : `${formatCount(snapshot.usedPremiumRequests)} / ${formatCount(snapshot.monthlyAllowance)} (${formatPercent(
+        snapshot.usagePercent,
+      )})`
   const parts = [
-    formatMessageHeader("GitHub Copilot", "premium requests", statusLabel, formatTimestamp(snapshot.fetchedAt)),
+    formatMessageHeader("GitHub Copilot", "premium requests", formatTimestamp(snapshot.fetchedAt)),
     "",
-    `Month: ${formatUsageMonth(snapshot.usageMonth.year, snapshot.usageMonth.month)}`,
-    usageLine,
-    `Overage: ${formatCount(snapshot.overageRequests)}`,
-    `Reset in: ${formatDurationUntil(snapshot.resetAt)}`,
+    formatMetricLine("Month", formatUsageMonth(snapshot.usageMonth.year, snapshot.usageMonth.month)),
+    formatMetricLine("Usage", usageText),
+    formatMetricLine("Overage", formatCount(snapshot.overageRequests)),
+    formatMetricLine("Reset in", formatDurationUntil(snapshot.resetAt)),
   ]
 
   if (snapshot.source === "billing") {
-    parts.push("", "Source: billing fallback")
-  }
-
-  if (snapshot.stale) {
-    parts.push("", "live refresh failed")
+    parts.push(CARD_DIVIDER, formatMetricLine("Source", "billing fallback"))
   }
 
   return parts.join("\n")
 }
 
 export function formatUsageMessage(messages: string[]): string {
-  return messages.map(formatCard).join("\n\n")
+  const cards = messages.map((message) => message.split("\n"))
+  const width = cards.reduce(
+    (maxWidth, lines) => Math.max(maxWidth, lines.reduce((lineMax, line) => Math.max(lineMax, getLineWidth(line)), 0)),
+    0,
+  )
+  const height = cards.reduce((maxHeight, lines) => Math.max(maxHeight, lines.length), 0)
+
+  return cards.map((lines) => formatCard(lines, width, height)).join("\n\n")
 }
 
-function formatMessageHeader(providerLabel: string, categoryLabel: string, statusLabel: string, updatedAt: string): string {
-  return [`[${providerLabel}] [${categoryLabel}] ${statusLabel}`, `Updated: ${updatedAt}`].join("\n")
+export function formatUsageLoadingMessage(frame: string): string {
+  return `${frame} Loading ...\n\nFetching configured providers. This can take a few seconds.`
 }
 
-function formatCard(message: string): string {
-  const lines = message.split("\n")
-  const width = lines.reduce((max, line) => Math.max(max, line.length), 0)
+function formatMessageHeader(providerLabel: string, categoryLabel: string, updatedAt: string): string {
+  return [`[${providerLabel}] [${categoryLabel}]`, `Updated: ${updatedAt}`].join("\n")
+}
+
+function formatCard(lines: string[], width: number, height: number): string {
   const border = `+${"-".repeat(width + 2)}+`
+  const paddedLines = [...lines, ...Array.from({ length: height - lines.length }, () => "")]
 
-  return [border, ...lines.map((line) => `| ${line.padEnd(width, " ")} |`), border].join("\n")
+  return [border, ...paddedLines.map((line) => `| ${formatCardLine(line, width)} |`), border].join("\n")
 }
 
-function formatWindowBlock(window: UsageWindowView): string {
-  const label = `${window.label}:`.padEnd(9, " ")
-  const filled = "#".repeat(window.filledSegments)
-  const empty = "-".repeat(BAR_SEGMENTS - window.filledSegments)
-  const percent = `${window.usagePercent}%`.padStart(5, " ")
+function getLineWidth(line: string): number {
+  const [left, right] = splitRightAlignedLine(line)
+  if (!right) return line.length
 
-  return `${label}[${filled}${empty}] ${percent}  ${window.resetText}`
+  return left.length + right.length + 1
+}
+
+function formatCardLine(line: string, width: number): string {
+  const [left, right] = splitRightAlignedLine(line)
+  if (!right) return line.padEnd(width, " ")
+
+  const spacing = " ".repeat(Math.max(1, width - left.length - right.length))
+  return `${left}${spacing}${right}`
+}
+
+function splitRightAlignedLine(line: string): [string, string | undefined] {
+  const separatorIndex = line.indexOf(RIGHT_ALIGN_SEPARATOR)
+  if (separatorIndex === -1) return [line, undefined]
+
+  return [line.slice(0, separatorIndex), line.slice(separatorIndex + RIGHT_ALIGN_SEPARATOR.length)]
+}
+
+function formatWindowRow(window: UsageWindowView): string {
+  const label = `${window.label}:`.padEnd(8, " ")
+  const percent = `${window.usagePercent}%`.padStart(4, " ")
+
+  return `${label} ${formatBar(window.usagePercent)} ${percent} ${window.resetText}`
 }
 
 function toWindowView(
@@ -133,6 +160,19 @@ function getSeverity(usagePercent: number): UsageSeverity {
   if (usagePercent >= 80) return "error"
   if (usagePercent >= 50) return "warning"
   return "success"
+}
+
+function formatBar(usagePercent: number): string {
+  const clamped = Math.max(0, Math.min(100, usagePercent))
+  const filledSegments = Math.round((clamped / 100) * BAR_SEGMENTS)
+  const filled = "#".repeat(filledSegments)
+  const empty = "-".repeat(BAR_SEGMENTS - filledSegments)
+
+  return `[${filled}${empty}]`
+}
+
+function formatMetricLine(label: string, value: string): string {
+  return `${label}: ${value}`
 }
 
 export function formatTimestamp(timestamp: number): string {
