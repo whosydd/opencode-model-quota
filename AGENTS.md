@@ -2,13 +2,13 @@
 
 ## Project Purpose
 
-OpenCode TUI plugin that shows model/subscription usage from multiple providers in one place.
+OpenCode TUI plugin that shows model/subscription quota from multiple providers in one place.
 
 ## Current Scope
 
-- OpenCode Go rolling, weekly, and monthly subscription usage (HTML scraping)
-- GitHub Copilot monthly premium request usage, allowance, and overage
-- Single slash command: `/model-usage` - always fetches fresh data
+- OpenCode Go rolling, weekly, and monthly subscription quota (HTML scraping)
+- GitHub Copilot monthly premium request quota, allowance, and overage
+- Single slash command: `/model-quota` - always fetches fresh data
 
 ## Build & Verify
 
@@ -23,8 +23,8 @@ No test suite exists yet. Verify by building and type-checking.
 ## Repository Layout
 
 - `src/tui.ts`: TUI plugin entrypoint. Registers slash commands, orchestrates provider calls, renders dialogs.
-- `src/config.ts`: Config loading with priority: `tui.json` plugin options → env vars → `opencode-model-usage.json` file.
-- `src/opencode-go.ts`: HTML fetch + parse for OpenCode Go usage.
+- `src/config.ts`: Config loading with priority: `tui.json` plugin options → env vars → `opencode-model-quota.json` file.
+- `src/opencode-go.ts`: HTML fetch + parse for OpenCode Go quota.
 - `src/github-copilot.ts`: GitHub API fetcher. Tries IDE quota snapshot first, falls back to personal billing usage endpoint.
 - `src/format.ts`: Text formatting for TUI dialog output.
 - `docs/project-plan.md`: Roadmap (phases 0-3).
@@ -42,7 +42,7 @@ No test suite exists yet. Verify by building and type-checking.
 ### OpenCode Go
 - Scrapes `https://opencode.ai/workspace/{id}/go` and parses inline JS object literals from HTML.
 - Parsing is fragile; the page format can change without warning.
-- Returns rolling, weekly, and monthly windows with `usagePercent` and `resetInSec`.
+- Returns rolling, weekly, and monthly windows with `quotaPercent` and `resetInSec`.
 
 ### GitHub Copilot
 - **Primary**: `GET /copilot_internal/user` quota snapshot (matches VS Code IDE usage).
@@ -53,7 +53,7 @@ No test suite exists yet. Verify by building and type-checking.
 
 ## Config & Secrets
 
-- Config file name: `opencode-model-usage.json`
+- Config file name: `opencode-model-quota.json`
 - Valid locations: `~/.config/opencode/`, `~/.opencode/`, `<project>/.opencode/`
 - String values support `{env:VARIABLE_NAME}` placeholders. Shell command placeholders like `{env:$(gh auth token)}` are explicitly rejected.
 - `refreshIntervalMinutes` is not supported (always fetches fresh data).

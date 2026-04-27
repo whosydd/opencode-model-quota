@@ -1,7 +1,7 @@
 {
-  "name": "opencode-model-usage",
+  "name": "opencode-model-quota",
   "version": "0.1.0",
-  "description": "OpenCode TUI plugin for model and subscription usage status.",
+  "description": "OpenCode TUI plugin for model and subscription quota status.",
   "type": "module",
   "files": [
     "dist"

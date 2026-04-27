@@ -5,7 +5,7 @@ import {
 } from "./config.js"
 
 type OpenCodeGoWindow = {
-  usagePercent: number
+  quotaPercent: number
   resetInSec: number
 }
 
@@ -16,25 +16,25 @@ export type OpenCodeGoSnapshot = {
   fetchedAt: number
 }
 
-export async function getOpenCodeGoUsage(
+export async function getOpenCodeGoQuota(
   overrides?: OpenCodeGoConfigOverrides,
 ): Promise<OpenCodeGoSnapshot> {
   const config = loadOpenCodeGoConfig(overrides)
-  return fetchOpenCodeGoUsage(config)
+  return fetchOpenCodeGoQuota(config)
 }
 
-async function fetchOpenCodeGoUsage(config: OpenCodeGoConfig): Promise<OpenCodeGoSnapshot> {
+async function fetchOpenCodeGoQuota(config: OpenCodeGoConfig): Promise<OpenCodeGoSnapshot> {
   let response: Response
   try {
     response = await fetch(`https://opencode.ai/workspace/${encodeURIComponent(config.workspaceId)}/go`, {
       headers: {
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         Cookie: `auth=${config.authCookie}`,
-        "User-Agent": "opencode-model-usage/0.1.0",
+        "User-Agent": "opencode-model-quota/0.1.0",
       },
     })
   } catch {
-    throw new Error("Network error while fetching OpenCode Go usage.")
+    throw new Error("Network error while fetching OpenCode Go quota.")
   }
 
   if (!response.ok) {
@@ -54,7 +54,7 @@ async function fetchOpenCodeGoUsage(config: OpenCodeGoConfig): Promise<OpenCodeG
   }
 
   if (!snapshot.rolling && !snapshot.weekly && !snapshot.monthly) {
-    throw new Error("Could not parse usage data from the OpenCode Go page. The page format may have changed.")
+    throw new Error("Could not parse quota data from the OpenCode Go page. The page format may have changed.")
   }
 
   return snapshot
@@ -65,13 +65,13 @@ function extractWindow(html: string, fieldName: string): OpenCodeGoWindow | null
   if (!objectLiteral) return null
 
   const parsed = parseLooseObjectLiteral(objectLiteral) as Record<string, unknown>
-  const usagePercent = asNumber(parsed.usagePercent)
+  const quotaPercent = asNumber(parsed.usagePercent)
   const resetInSec = asNumber(parsed.resetInSec)
 
-  if (usagePercent === null || resetInSec === null) return null
+  if (quotaPercent === null || resetInSec === null) return null
 
   return {
-    usagePercent: Math.round(usagePercent),
+    quotaPercent: Math.round(quotaPercent),
     resetInSec: Math.max(0, Math.round(resetInSec)),
   }
 }
@@ -158,7 +158,7 @@ function parseLooseObjectLiteral(input: string): unknown {
   try {
     return JSON.parse(normalized)
   } catch {
-    throw new Error("Could not parse an OpenCode Go usage payload.")
+    throw new Error("Could not parse an OpenCode Go quota payload.")
   }
 }
 

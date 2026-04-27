@@ -2,16 +2,16 @@
 
 ## Goal
 
-Build an OpenCode plugin that lets users quickly inspect model or subscription usage so they can decide when to use premium models and when to switch to cheaper ones.
+Build an OpenCode plugin that lets users quickly inspect model or subscription quota so they can decide when to use premium models and when to switch to cheaper ones.
 
 ## Product Direction
 
-The target experience is a unified usage command that can show:
+The target experience is a unified quota command that can show:
 
-- GitHub Copilot premium request usage.
-- ChatGPT or Codex subscription window usage.
-- OpenCode Go rolling, weekly, and monthly usage.
-- Future provider-specific usage windows where official or stable unofficial sources exist.
+- GitHub Copilot premium request quota.
+- ChatGPT or Codex subscription window quota.
+- OpenCode Go rolling, weekly, and monthly quota.
+- Future provider-specific quota windows where official or stable unofficial sources exist.
 
 ## Delivery Strategy
 
@@ -24,7 +24,7 @@ The target experience is a unified usage command that can show:
 ### Phase 1: Minimal Working Version
 
 - Scope: OpenCode Go only.
-- Surface: `/model-usage` slash command in the TUI, plus `/model-usage-refresh` for forced refresh.
+- Surface: `/model-quota` slash command in the TUI.
 - Output: a short formatted summary shown in a TUI dialog.
 - Configuration: `tui.json` plugin options first, then environment variables, then config file fallback.
 - Caching: in-memory cache to avoid repeated scraping.
@@ -34,7 +34,7 @@ The target experience is a unified usage command that can show:
 - Add adapter-based provider normalization.
 - Reuse OpenCode built-in usage data where it already exists.
 - Add GitHub Copilot and ChatGPT or Codex support.
-- Current progress: GitHub Copilot premium request usage is available through the IDE quota snapshot path with a personal billing fallback for user-billed accounts.
+- Current progress: GitHub Copilot premium request quota is available through the IDE quota snapshot path with a personal billing fallback for user-billed accounts.
 
 ### Phase 3: Richer UX
 
@@ -53,7 +53,7 @@ The target experience is a unified usage command that can show:
 ## V1 Shape
 
 - A TUI plugin package exposing `./tui`.
-- A single slash command, `/model-usage`.
+- A single slash command, `/model-quota`.
 - A provider module dedicated to OpenCode Go.
 
 ## Key Technical Choices
@@ -79,7 +79,7 @@ Example:
   "$schema": "https://opencode.ai/tui.json",
   "plugin": [
     [
-      "file:///absolute/path/to/opencode-model-usage/dist/tui.js",
+      "file:///absolute/path/to/opencode-model-quota/dist/tui.js",
       {
         "workspaceId": "wrk_example",
         "authCookie": "Fe26.2**example",
@@ -98,9 +98,9 @@ Example:
 
 ### Fallback File
 
-- `~/.config/opencode/opencode-model-usage.json`
-- `~/.opencode/opencode-model-usage.json`
-- `<project>/.opencode/opencode-model-usage.json`
+- `~/.config/opencode/opencode-model-quota.json`
+- `~/.opencode/opencode-model-quota.json`
+- `<project>/.opencode/opencode-model-quota.json`
 
 Example:
 
@@ -116,14 +116,14 @@ Example:
 
 ## Risks
 
-- OpenCode Go usage is currently obtained from the web app, so parsing can break if page structure changes.
+- OpenCode Go quota is currently obtained from the web app, so parsing can break if page structure changes.
 - Cookies expire, so error handling must remain user-friendly.
 - The first version should not overfit around unstable HTML details.
 
 ## Definition Of Done For V1
 
 - Repository has clear agent and project documentation.
-- `/model-usage` is registered by the TUI plugin.
-- The command returns OpenCode Go usage when configured.
+- `/model-quota` is registered by the TUI plugin.
+- The command returns OpenCode Go quota when configured.
 - Misconfiguration and auth failures produce clear messages.
 - Build succeeds locally.

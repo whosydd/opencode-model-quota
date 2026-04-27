@@ -1,17 +1,17 @@
-# opencode-model-usage
+# opencode-model-quota
 
-OpenCode TUI plugin for checking model or subscription usage.
+OpenCode TUI plugin for checking model or subscription quota.
 
 ## Supported Providers
 
-- **OpenCode Go** — rolling, weekly, and monthly subscription usage
-- **GitHub Copilot** — monthly premium request usage, allowance, and overage
+- **OpenCode Go** — rolling, weekly, and monthly subscription quota
+- **GitHub Copilot** — monthly premium request quota, allowance, and overage
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/model-usage` | Fetch and show current usage |
+| `/model-quota` | Fetch and show current quota |
 
 ## Install
 
@@ -27,7 +27,7 @@ Then add to your `tui.json`:
   "$schema": "https://opencode.ai/tui.json",
   "plugin": [
     [
-      "file:///absolute/path/to/opencode-model-usage/dist/tui.js",
+      "file:///absolute/path/to/opencode-model-quota/dist/tui.js",
       {
         "opencodeGo": {
           "workspaceId": "wrk_your_workspace_id",
@@ -61,7 +61,7 @@ export GITHUB_COPILOT_PLAN="pro"  # "pro" or "pro+"
 
 ### Config File
 
-Create `opencode-model-usage.json` at one of these locations:
+Create `opencode-model-quota.json` at one of these locations:
 - `~/.config/opencode/`
 - `~/.opencode/`
 - `<project>/.opencode/`

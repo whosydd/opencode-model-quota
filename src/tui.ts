@@ -7,16 +7,16 @@ import {
 import {
   formatGitHubCopilotMessage,
   formatOpenCodeGoMessage,
-  formatUsageLoadingMessage,
-  formatUsageMessage,
+  formatQuotaLoadingMessage,
+  formatQuotaMessage,
 } from "./format.js"
-import { getGitHubCopilotUsage } from "./github-copilot.js"
-import { getOpenCodeGoUsage } from "./opencode-go.js"
+import { getGitHubCopilotQuota } from "./github-copilot.js"
+import { getOpenCodeGoQuota } from "./opencode-go.js"
 
-const COMMAND_VALUE = "model-usage.show"
+const COMMAND_VALUE = "model-quota.show"
 const LOADING_FRAMES = ["|", "/", "-", "\\"]
 
-let activeUsageRequestId = 0
+let activeQuotaRequestId = 0
 let stopActiveLoading: (() => void) | undefined
 
 const tui: TuiPlugin = async (api, options) => {
@@ -24,27 +24,25 @@ const tui: TuiPlugin = async (api, options) => {
 
   api.command.register(() => [
     {
-      title: "Model Usage Overview",
+      title: "Show model quota",
       value: COMMAND_VALUE,
-      description: "Show AI quota and subscription usage",
-      category: "Usage",
+      category: "Quota",
       suggested: true,
       slash: {
-        name: "model-usage",
-        aliases: ["go-usage", "copilot-usage"],
+        name: "model-quota",
       },
-      onSelect: () => showUsageDialog(api, configOverrides),
+      onSelect: () => showQuotaDialog(api, configOverrides),
     },
   ])
 }
 
-async function showUsageDialog(
+async function showQuotaDialog(
   api: Parameters<TuiPlugin>[0],
   configOverrides: PluginConfigOverrides | undefined,
 ): Promise<void> {
   stopActiveLoading?.()
 
-  const requestId = ++activeUsageRequestId
+  const requestId = ++activeQuotaRequestId
   let loadingFrame = 0
   let loadingTimer: ReturnType<typeof setInterval> | undefined
   const stopLoading = () => {
@@ -58,8 +56,8 @@ async function showUsageDialog(
     }
   }
   const closeLoadingDialog = () => {
-    if (activeUsageRequestId === requestId) {
-      activeUsageRequestId++
+    if (activeQuotaRequestId === requestId) {
+      activeQuotaRequestId++
     }
 
     stopLoading()
@@ -69,8 +67,8 @@ async function showUsageDialog(
   const renderLoadingDialog = () => {
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Usage Overview",
-        message: formatUsageLoadingMessage(LOADING_FRAMES[loadingFrame]),
+        title: "Model Quota",
+        message: formatQuotaLoadingMessage(LOADING_FRAMES[loadingFrame]),
         onConfirm: closeLoadingDialog,
       }),
     )
@@ -79,34 +77,34 @@ async function showUsageDialog(
   stopActiveLoading = stopLoading
   renderLoadingDialog()
   loadingTimer = setInterval(() => {
-    if (activeUsageRequestId !== requestId) return
+    if (activeQuotaRequestId !== requestId) return
 
     loadingFrame = (loadingFrame + 1) % LOADING_FRAMES.length
     renderLoadingDialog()
   }, 180)
 
   try {
-    const message = await buildUsageMessage(configOverrides)
+    const message = await buildQuotaMessage(configOverrides)
 
-    if (activeUsageRequestId !== requestId) return
+    if (activeQuotaRequestId !== requestId) return
     stopLoading()
 
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Usage Overview",
+        title: "Model Quota",
         message,
         onConfirm: () => api.ui.dialog.clear(),
       }),
     )
   } catch (error) {
-    if (activeUsageRequestId !== requestId) return
+    if (activeQuotaRequestId !== requestId) return
 
     stopLoading()
 
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Usage Overview Error",
-        message: error instanceof Error ? error.message : "Failed to fetch usage.",
+        title: "Model Quota Error",
+        message: error instanceof Error ? error.message : "Failed to fetch quota.",
         onConfirm: () => api.ui.dialog.clear(),
       }),
     )
@@ -115,7 +113,7 @@ async function showUsageDialog(
   }
 }
 
-async function buildUsageMessage(
+async function buildQuotaMessage(
   configOverrides: PluginConfigOverrides | undefined,
 ): Promise<string> {
   const tasks: Array<Promise<string>> = []
@@ -123,7 +121,7 @@ async function buildUsageMessage(
 
   try {
     if (loadOptionalOpenCodeGoConfig(configOverrides)) {
-      tasks.push(getOpenCodeGoUsage(configOverrides).then(formatOpenCodeGoMessage))
+      tasks.push(getOpenCodeGoQuota(configOverrides).then(formatOpenCodeGoMessage))
     }
   } catch (error) {
     errors.push(errorMessage(error))
@@ -131,7 +129,7 @@ async function buildUsageMessage(
 
   try {
     if (loadOptionalGitHubCopilotConfig(configOverrides)) {
-      tasks.push(getGitHubCopilotUsage(configOverrides).then(formatGitHubCopilotMessage))
+      tasks.push(getGitHubCopilotQuota(configOverrides).then(formatGitHubCopilotMessage))
     }
   } catch (error) {
     errors.push(errorMessage(error))
@@ -143,7 +141,7 @@ async function buildUsageMessage(
     }
 
     throw new Error(
-      "No usage providers are configured. Set OpenCode Go and/or GitHub Copilot credentials in tui.json, environment variables, or opencode-model-usage.json.",
+      "No quota providers are configured. Set OpenCode Go and/or GitHub Copilot credentials in tui.json, environment variables, or opencode-model-quota.json.",
     )
   }
 
@@ -167,11 +165,11 @@ async function buildUsageMessage(
     messages.push(`Provider errors:\n- ${errors.join("\n- ")}`)
   }
 
-  return formatUsageMessage(messages)
+  return formatQuotaMessage(messages)
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Failed to fetch usage."
+  return error instanceof Error ? error.message : "Failed to fetch quota."
 }
 
 const plugin: TuiPluginModule & { id: string } = {
