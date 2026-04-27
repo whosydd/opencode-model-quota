@@ -23,7 +23,7 @@ OpenCode TUI 插件，用于查看模型或订阅配额。
 |---------|------|
 | `/model-quota` | 获取并显示所有已配置提供商的当前配额 |
 
-该命令始终获取最新数据。加载动画会在各提供商并行查询期间显示。
+该命令始终获取最新数据。
 
 ## 输出示例
 
@@ -43,15 +43,7 @@ OpenCode TUI 插件，用于查看模型或订阅配额。
 
 ## 安装
 
-### 1. 通过 npm 安装（推荐）
-
-```bash
-npm install opencode-model-quota
-```
-
-### 2. 注册到 OpenCode
-
-在 `tui.json` 中添加插件：
+在 `tui.json` 中添加插件 — OpenCode 启动时会自动安装并加载：
 
 ```json
 {
@@ -65,7 +57,7 @@ npm install opencode-model-quota
           "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}"
         },
         "githubCopilot": {
-          "username": "your-github-login",
+          "username": "your-github-username",
           "token": "{env:GITHUB_COPILOT_TOKEN}",
           "plan": "pro"
         }
@@ -76,10 +68,6 @@ npm install opencode-model-quota
 ```
 
 仅配置你需要的提供商。省略 `opencodeGo` 或 `githubCopilot` 即可跳过该提供商。
-
-### 3. 验证
-
-重启 OpenCode，在 TUI 中运行 `/model-quota`。
 
 <details>
 <summary>手动构建（开发人员）</summary>

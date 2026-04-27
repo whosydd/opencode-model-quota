@@ -23,7 +23,7 @@ Providers only run when their credentials are configured. Unconfigured providers
 |---------|-------------|
 | `/model-quota` | Fetch and show current quota from all configured providers |
 
-The command always fetches fresh data. A loading animation runs while providers are queried in parallel.
+The command always fetches fresh data. 
 
 ## Output
 
@@ -43,15 +43,7 @@ Quota is displayed as a card-based dialog with progress bars, percentages, and r
 
 ## Install
 
-### 1. From npm (Recommended)
-
-```bash
-npm install opencode-model-quota
-```
-
-### 2. Register in OpenCode
-
-Add the plugin to your `tui.json`:
+Add the plugin to your `tui.json` — OpenCode will automatically install and load it on startup:
 
 ```json
 {
@@ -65,7 +57,7 @@ Add the plugin to your `tui.json`:
           "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}"
         },
         "githubCopilot": {
-          "username": "your-github-login",
+          "username": "your-github-username",
           "token": "{env:GITHUB_COPILOT_TOKEN}",
           "plan": "pro"
         }
@@ -76,10 +68,6 @@ Add the plugin to your `tui.json`:
 ```
 
 Configure only the providers you need. Omit `opencodeGo` or `githubCopilot` to skip that provider.
-
-### 3. Verify
-
-Restart OpenCode and run `/model-quota` in the TUI.
 
 <details>
 <summary>Manual build (for developers)</summary>
