@@ -34,6 +34,7 @@ The target experience is a unified usage command that can show:
 - Add adapter-based provider normalization.
 - Reuse OpenCode built-in usage data where it already exists.
 - Add GitHub Copilot and ChatGPT or Codex support.
+- Current progress: GitHub Copilot premium request usage is available through the IDE quota snapshot path with a personal billing fallback for user-billed accounts.
 
 ### Phase 3: Richer UX
 
@@ -46,6 +47,7 @@ The target experience is a unified usage command that can show:
 - `src/tui.ts` owns the slash command registration and TUI feedback.
 - `src/config.ts` centralizes environment and file-based config loading.
 - `src/opencode-go.ts` owns remote fetching, HTML parsing, and cache behavior.
+- `src/github-copilot.ts` owns GitHub billing API fetching and cache behavior.
 - `src/format.ts` converts provider data into user-facing text.
 
 ## V1 Shape
@@ -77,7 +79,7 @@ Example:
   "$schema": "https://opencode.ai/tui.json",
   "plugin": [
     [
-      "file:///absolute/path/to/opencode-model-status/dist/tui.js",
+      "file:///absolute/path/to/opencode-model-usage/dist/tui.js",
       {
         "workspaceId": "wrk_example",
         "authCookie": "Fe26.2**example",
@@ -96,9 +98,9 @@ Example:
 
 ### Fallback File
 
-- `~/.config/opencode/opencode-model-status.json`
-- `~/.opencode/opencode-model-status.json`
-- `<project>/.opencode/opencode-model-status.json`
+- `~/.config/opencode/opencode-model-usage.json`
+- `~/.opencode/opencode-model-usage.json`
+- `<project>/.opencode/opencode-model-usage.json`
 
 Example:
 

@@ -63,13 +63,18 @@ export async function getOpenCodeGoUsage(
 }
 
 async function fetchOpenCodeGoUsage(config: OpenCodeGoConfig): Promise<OpenCodeGoSnapshot> {
-  const response = await fetch(`https://opencode.ai/workspace/${encodeURIComponent(config.workspaceId)}/go`, {
-    headers: {
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      Cookie: `auth=${config.authCookie}`,
-      "User-Agent": "opencode-model-status/0.1.0",
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(`https://opencode.ai/workspace/${encodeURIComponent(config.workspaceId)}/go`, {
+      headers: {
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Cookie: `auth=${config.authCookie}`,
+        "User-Agent": "opencode-model-usage/0.1.0",
+      },
+    })
+  } catch {
+    throw new Error("Network error while fetching OpenCode Go usage.")
+  }
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
@@ -111,10 +116,26 @@ function extractWindow(html: string, fieldName: string): OpenCodeGoWindow | null
 }
 
 function extractObjectLiteral(html: string, fieldName: string): string | null {
-  const match = new RegExp(`${fieldName}:\$R\[\d+\]=\{`).exec(html)
-  if (!match || match.index === undefined) return null
+  const patterns = [
+    new RegExp(`${escapeRegExp(fieldName)}\\s*:\\s*\\$R\\[\\d+\\]\\s*=\\s*\\{`),
+    new RegExp(`\"${escapeRegExp(fieldName)}\"\\s*:\\s*\\{`),
+    new RegExp(`${escapeRegExp(fieldName)}\\s*:\\s*\\{`),
+    new RegExp(`${escapeRegExp(fieldName)}\\s*=\\s*\\{`),
+  ]
 
-  const start = match.index + match[0].length - 1
+  for (const pattern of patterns) {
+    const match = pattern.exec(html)
+    if (!match || match.index === undefined) continue
+
+    const start = match.index + match[0].lastIndexOf("{")
+    const objectLiteral = readObjectLiteral(html, start)
+    if (objectLiteral) return objectLiteral
+  }
+
+  return null
+}
+
+function readObjectLiteral(html: string, start: number): string | null {
   let depth = 0
   let inSingleQuote = false
   let inDoubleQuote = false
@@ -170,6 +191,7 @@ function parseLooseObjectLiteral(input: string): unknown {
       const escaped = value.replace(/"/g, '\\"')
       return `"${escaped}"`
     })
+    .replace(/("(?:\\.|[^"\\])*")|\bundefined\b/g, (match, quoted) => quoted ?? "null")
     .replace(/,\s*([}\]])/g, "$1")
 
   try {
@@ -181,7 +203,17 @@ function parseLooseObjectLiteral(input: string): unknown {
 
 function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value
+
+  if (typeof value === "string") {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+
   return null
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 function createConfigFingerprint(config: OpenCodeGoConfig): string {

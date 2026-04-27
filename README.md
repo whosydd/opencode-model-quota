@@ -1,91 +1,45 @@
-# opencode-model-status
+# opencode-model-usage
 
 OpenCode TUI plugin for checking model or subscription usage.
 
-The first version only supports OpenCode Go and exposes a single slash command:
+## Supported Providers
 
-```text
-/model-usage
-```
+- **OpenCode Go** — rolling, weekly, and monthly subscription usage
+- **GitHub Copilot** — monthly premium request usage, allowance, and overage
 
-It also exposes a manual refresh command:
+## Commands
 
-```text
-/model-usage-refresh
-```
+| Command | Description |
+|---------|-------------|
+| `/model-usage` | Show cached usage (or fetch if stale) |
+| `/model-usage-refresh` | Force a live refresh |
 
-## Status
-
-- Current: OpenCode Go only
-- Planned: Copilot, ChatGPT or Codex, and other provider adapters
-
-## Install For Local Development
-
-1. Install dependencies:
+## Install
 
 ```bash
 npm install
-```
-
-2. Build the plugin:
-
-```bash
 npm run build
 ```
 
-3. Add the built plugin to your OpenCode TUI config:
+Then add to your `tui.json`:
 
 ```json
 {
   "$schema": "https://opencode.ai/tui.json",
   "plugin": [
     [
-      "file:///absolute/path/to/opencode-model-status/dist/tui.js",
-      {
-        "workspaceId": "wrk_your_workspace_id",
-        "authCookie": "Fe26.2**your_auth_cookie",
-        "refreshIntervalMinutes": 5
-      }
-    ]
-  ]
-}
-```
-
-OpenCode will load the local TUI plugin file directly.
-
-## Configuration
-
-Preferred: `tui.json` plugin options.
-
-```json
-{
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": [
-    [
-      "file:///absolute/path/to/opencode-model-status/dist/tui.js",
-      {
-        "workspaceId": "wrk_your_workspace_id",
-        "authCookie": "Fe26.2**your_auth_cookie",
-        "refreshIntervalMinutes": 5
-      }
-    ]
-  ]
-}
-```
-
-Nested form is also supported:
-
-```json
-{
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": [
-    [
-      "file:///absolute/path/to/opencode-model-status/dist/tui.js",
+      "file:///absolute/path/to/opencode-model-usage/dist/tui.js",
       {
         "opencodeGo": {
           "workspaceId": "wrk_your_workspace_id",
-          "authCookie": "Fe26.2**your_auth_cookie",
+          "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}",
           "refreshIntervalMinutes": 5
+        },
+        "githubCopilot": {
+          "username": "your-github-login",
+          "token": "{env:GITHUB_COPILOT_TOKEN}",
+          "refreshIntervalMinutes": 5,
+          "monthlyAllowance": 300
         }
       }
     ]
@@ -93,48 +47,44 @@ Nested form is also supported:
 }
 ```
 
-Environment variables remain supported as fallback:
+## Configuration
+
+Priority: `tui.json` → environment variables → config file.
+
+### Environment Variables
 
 ```bash
 export OPENCODE_GO_WORKSPACE_ID="wrk_your_workspace_id"
 export OPENCODE_GO_AUTH_COOKIE="Fe26.2**your_auth_cookie"
-export OPENCODE_GO_REFRESH_MINUTES="5"
+
+export GITHUB_COPILOT_USERNAME="your-github-login"
+export GITHUB_COPILOT_TOKEN="github_pat_your_token"
+export GITHUB_COPILOT_MONTHLY_ALLOWANCE="300"  # 300 for Pro, 1500 for Pro+
 ```
 
-Config file fallback:
+### Config File
+
+Create `opencode-model-usage.json` at one of these locations:
+- `~/.config/opencode/`
+- `~/.opencode/`
+- `<project>/.opencode/`
 
 ```json
 {
   "opencodeGo": {
     "workspaceId": "wrk_your_workspace_id",
-    "authCookie": "Fe26.2**your_auth_cookie",
-    "refreshIntervalMinutes": 5
+    "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}"
+  },
+  "githubCopilot": {
+    "username": "your-github-login",
+    "token": "{env:GITHUB_COPILOT_TOKEN}",
+    "monthlyAllowance": 300
   }
 }
 ```
 
-Valid config file locations:
+String values support `{env:VARIABLE_NAME}` placeholders.
 
-- `~/.config/opencode/opencode-model-status.json`
-- `~/.opencode/opencode-model-status.json`
-- `<project>/.opencode/opencode-model-status.json`
+## Security
 
-## Usage
-
-Inside OpenCode TUI:
-
-```text
-/model-usage
-```
-
-Or force a live refresh:
-
-```text
-/model-usage-refresh
-```
-
-The plugin shows OpenCode Go rolling, weekly, and monthly usage in a TUI dialog with progress bars and a live or cached status line.
-
-## Security Note
-
-If you put `authCookie` in `tui.json`, it is stored in plaintext on disk. Prefer a user-level config file, not a project repository file.
+Never commit tokens or cookies to the repository. Prefer environment variables or a user-level config file over `tui.json`, which stores values in plaintext.
