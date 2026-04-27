@@ -147,6 +147,7 @@ async function buildQuotaMessage(
 
   const results = await Promise.allSettled(tasks)
   const messages: string[] = []
+  const fetchedAt = Date.now()
 
   for (const result of results) {
     if (result.status === "fulfilled") {
@@ -165,7 +166,7 @@ async function buildQuotaMessage(
     messages.push(`Provider errors:\n- ${errors.join("\n- ")}`)
   }
 
-  return formatQuotaMessage(messages)
+  return formatQuotaMessage(messages, fetchedAt)
 }
 
 function errorMessage(error: unknown): string {

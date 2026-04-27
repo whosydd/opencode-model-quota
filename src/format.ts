@@ -19,7 +19,6 @@ export type QuotaWindowView = {
 export type QuotaDialogView = {
   providerLabel: string
   categoryLabel: string
-  updatedAt: string
   windows: QuotaWindowView[]
 }
 
@@ -41,14 +40,13 @@ export function buildQuotaDialogView(snapshot: OpenCodeGoSnapshot): QuotaDialogV
   return {
     providerLabel: "OpenCode Go",
     categoryLabel: "subscription",
-    updatedAt: formatTimestamp(snapshot.fetchedAt),
     windows,
   }
 }
 
 export function formatOpenCodeGoMessage(snapshot: OpenCodeGoSnapshot): string {
   const view = buildQuotaDialogView(snapshot)
-  const parts = [formatMessageHeader(view.providerLabel, view.categoryLabel, view.updatedAt), ""]
+  const parts = [formatMessageHeader(view.providerLabel, view.categoryLabel), ""]
 
   if (view.windows.length > 0) {
     parts.push(...view.windows.map(formatWindowRow))
@@ -61,7 +59,7 @@ export function formatOpenCodeGoMessage(snapshot: OpenCodeGoSnapshot): string {
 
 export function formatGitHubCopilotMessage(snapshot: GitHubCopilotSnapshot): string {
   const parts = [
-    formatMessageHeader("GitHub Copilot", "premium requests", formatTimestamp(snapshot.fetchedAt)),
+    formatMessageHeader("GitHub Copilot", "premium requests"),
     "",
     formatMetricLine("Quota", formatCopilotQuota(snapshot)),
     formatMetricLine("Overage", formatCount(snapshot.overageRequests)),
@@ -85,22 +83,30 @@ export function formatGitHubCopilotMessage(snapshot: GitHubCopilotSnapshot): str
   return parts.join("\n")
 }
 
-export function formatQuotaMessage(messages: string[]): string {
+export function formatQuotaMessage(messages: string[], fetchedAt?: number): string {
   const cards = messages.map((message) => message.split("\n"))
   const width = cards.reduce(
     (maxWidth, lines) => Math.max(maxWidth, lines.reduce((lineMax, line) => Math.max(lineMax, getLineWidth(line)), 0)),
     0,
   )
 
-  return cards.map((lines) => formatCard(lines, width)).join("\n\n")
+  const formattedCards = cards.map((lines) => formatCard(lines, width)).join("\n\n")
+  
+  if (fetchedAt != null) {
+    const updatedAt = `Updated: ${formatTimestamp(fetchedAt)}`
+    const spacing = " ".repeat(Math.max(0, width + 4 - updatedAt.length))
+    return `${formattedCards}\n\n${spacing}${updatedAt}`
+  }
+
+  return formattedCards
 }
 
 export function formatQuotaLoadingMessage(frame: string): string {
   return `${frame} Fetching...\n\nThis can take a few seconds.`
 }
 
-function formatMessageHeader(providerLabel: string, categoryLabel: string, updatedAt: string): string {
-  return [`[${providerLabel}] [${categoryLabel}]`, `Updated: ${updatedAt}`].join("\n")
+function formatMessageHeader(providerLabel: string, categoryLabel: string): string {
+  return `[${providerLabel}] [${categoryLabel}]`
 }
 
 function formatCard(lines: string[], width: number): string {
