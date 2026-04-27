@@ -23,7 +23,7 @@ No test suite exists yet. Verify by building and type-checking.
 ## Repository Layout
 
 - `src/tui.ts`: TUI plugin entrypoint. Registers slash commands, orchestrates provider calls, renders dialogs.
-- `src/config.ts`: Config loading with priority: `tui.json` plugin options → env vars → `opencode-model-quota.json` file.
+- `src/config.ts`: Config loading with priority: `tui.json` plugin options → env vars.
 - `src/opencode-go.ts`: HTML fetch + parse for OpenCode Go quota.
 - `src/github-copilot.ts`: GitHub API fetcher. Tries IDE quota snapshot first, falls back to personal billing usage endpoint.
 - `src/format.ts`: Text formatting for TUI dialog output.
@@ -53,8 +53,7 @@ No test suite exists yet. Verify by building and type-checking.
 
 ## Config & Secrets
 
-- Config file name: `opencode-model-quota.json`
-- Valid locations: `~/.config/opencode/`, `~/.opencode/`, `<project>/.opencode/`
+- Credentials should be provided via `tui.json` plugin options or environment variables.
 - String values support `{env:VARIABLE_NAME}` placeholders. Shell command placeholders like `{env:$(gh auth token)}` are explicitly rejected.
 - `refreshIntervalMinutes` is not supported (always fetches fresh data).
 - Never commit tokens or cookies to the repo.
