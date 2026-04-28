@@ -25,6 +25,7 @@ type OpenAIUsageResponse = {
 }
 
 type OpenAIWindow = {
+  label: string
   percentRemaining: number
   resetTimeIso?: string
 }
@@ -33,8 +34,8 @@ export type OpenAISnapshot = {
   label: string
   email?: string
   windows: {
-    hourly?: OpenAIWindow
-    weekly?: OpenAIWindow
+    primary?: OpenAIWindow
+    secondary?: OpenAIWindow
     codeReview?: OpenAIWindow
   }
   fetchedAt: number
@@ -52,6 +53,28 @@ function deriveLabel(planType: string | undefined): string {
 
 function remainingPercent(window: RateLimitWindow): number {
   return Math.max(0, Math.min(100, Math.round(100 - window.used_percent)))
+}
+
+function labelForWindow(window: RateLimitWindow, fallback: string): string {
+  const seconds = window.limit_window_seconds
+  if (!Number.isFinite(seconds) || seconds <= 0) return fallback
+
+  if (seconds % 86400 === 0) {
+    const days = Math.round(seconds / 86400)
+    return days === 1 ? "Daily" : `${days}d`
+  }
+
+  if (seconds % 3600 === 0) {
+    const hours = Math.round(seconds / 3600)
+    return hours === 1 ? "Hourly" : `${hours}h`
+  }
+
+  if (seconds % 60 === 0) {
+    const minutes = Math.round(seconds / 60)
+    return minutes === 1 ? "1m" : `${minutes}m`
+  }
+
+  return `${Math.round(seconds)}s`
 }
 
 function resetIsoFromSeconds(seconds: number): string | undefined {
@@ -82,7 +105,7 @@ export async function getOpenAIQuota(): Promise<OpenAISnapshot | null> {
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${resolved.accessToken}`,
-    "User-Agent": "opencode-model-quota/0.1.1",
+    "User-Agent": "opencode-model-quota/0.2.0",
   }
 
   if (resolved.accountId) {
@@ -110,19 +133,21 @@ export async function getOpenAIQuota(): Promise<OpenAISnapshot | null> {
   }
 
   const data = (await response.json()) as OpenAIUsageResponse
-  const primary = data.rate_limit?.primary_window
+  const primaryWindow = data.rate_limit?.primary_window
 
-  if (!primary) {
+  if (!primaryWindow) {
     throw new Error("No quota data received from OpenAI.")
   }
 
-  const hourly: OpenAIWindow = {
-    percentRemaining: remainingPercent(primary),
-    resetTimeIso: resetIsoFromTimestamp(primary.reset_at) ?? resetIsoFromSeconds(primary.reset_after_seconds),
+  const primary: OpenAIWindow = {
+    label: labelForWindow(primaryWindow, "Primary"),
+    percentRemaining: remainingPercent(primaryWindow),
+    resetTimeIso: resetIsoFromTimestamp(primaryWindow.reset_at) ?? resetIsoFromSeconds(primaryWindow.reset_after_seconds),
   }
 
-  const weekly: OpenAIWindow | undefined = data.rate_limit?.secondary_window
+  const secondary: OpenAIWindow | undefined = data.rate_limit?.secondary_window
     ? {
+        label: labelForWindow(data.rate_limit.secondary_window, "Secondary"),
         percentRemaining: remainingPercent(data.rate_limit.secondary_window),
         resetTimeIso:
           resetIsoFromTimestamp(data.rate_limit.secondary_window.reset_at) ??
@@ -132,6 +157,7 @@ export async function getOpenAIQuota(): Promise<OpenAISnapshot | null> {
 
   const codeReview: OpenAIWindow | undefined = data.code_review_rate_limit?.primary_window
     ? {
+        label: "Code Review",
         percentRemaining: remainingPercent(data.code_review_rate_limit.primary_window),
         resetTimeIso:
           resetIsoFromTimestamp(data.code_review_rate_limit.primary_window.reset_at) ??
@@ -142,9 +168,7 @@ export async function getOpenAIQuota(): Promise<OpenAISnapshot | null> {
   return {
     label: deriveLabel(data.plan_type),
     email: resolved.email,
-    windows: { hourly, weekly, codeReview },
+    windows: { primary, secondary, codeReview },
     fetchedAt: Date.now(),
   }
 }
-
-

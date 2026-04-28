@@ -8,7 +8,7 @@ OpenCode TUI plugin that shows model/subscription quota from multiple providers 
 
 - OpenCode Go rolling, weekly, and monthly subscription quota (HTML scraping)
 - GitHub Copilot monthly premium request quota, allowance, and overage
-- OpenAI hourly, weekly, and code-review rate limit windows
+- OpenAI rate-limit windows derived from the API response duration, plus code-review windows when available
 - Single slash command: `/model-quota` - always fetches fresh data
 
 ## Build & Verify
@@ -55,7 +55,7 @@ No test suite exists yet. Verify by building and type-checking.
 
 ### OpenAI
 - Fetches from `https://chatgpt.com/backend-api/wham/usage` using the OpenCode-stored OAuth session.
-- Returns hourly, weekly, and code-review rate limit windows with `used_percent` and reset timestamps.
+- Returns rate-limit windows labeled from the API-reported duration, plus code-review windows when available.
 - Auth/permission/rate-limit errors are surfaced directly.
 
 ## Config & Secrets

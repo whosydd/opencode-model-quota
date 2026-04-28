@@ -12,7 +12,7 @@ OpenCode TUI 插件，用于查看模型或订阅配额。
 
 - **OpenCode Go** — 滚动、周度和月度订阅配额（通过 HTML 解析）
 - **GitHub Copilot** — 月度高级请求配额、额度和超额用量
-- **OpenAI** — 小时、周度和代码审查频率限制窗口
+- **OpenAI** — 基于当前 OpenAI 会话返回的频率限制窗口（例如 `5h`、`7d`，以及在可用时显示代码审查窗口）
 
 仅当凭据已配置时，对应提供商才会运行。未配置的提供商会自动跳过。
 
@@ -26,18 +26,18 @@ OpenCode TUI 插件，用于查看模型或订阅配额。
 
 ## 输出示例
 
-配额以卡片式对话框展示，包含进度条、百分比和重置计时：
+配额以分组文本对话框展示，包含进度条、百分比和重置计时：
 
 ```
-+--------------------------------------------+
-| [OpenCode Go] [subscription]               |
-|                                            |
-| Rolling: [########------------]  33% 5m    |
-| Weekly:  [############--------]  50% 3d 2h |
-| Monthly: [####################]  83% 12d   |
-+--------------------------------------------+
+→ [OpenCode Go]
+Rolling:            5m
+████████████████░░░░░░░░   67% left
+Weekly:          3d 2h
+████████████░░░░░░░░░░░░   50% left
+Monthly:          12d
+████████░░░░░░░░░░░░░░░░   33% left
 
-                Updated: Apr 27, 2:30 PM
+Updated: Apr 27, 2:30 PM
 ```
 
 ## 安装
@@ -55,7 +55,6 @@ OpenCode TUI 插件，用于查看模型或订阅配额。
           "workspaceId": "wrk_your_workspace_id",
           "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}"
         },
-        "githubCopilot": "通过 OpenCode 登录配置"
       }
     ]
   ]
@@ -118,4 +117,4 @@ GitHub Copilot 和 OpenAI 不再使用插件选项或环境变量。直接通过
 
 ## OpenAI 数据来源
 
-插件使用 OpenCode 保存的 OAuth 会话调用 OpenAI 使用量 API（`/backend-api/wham/usage`）。身份验证、权限和频率限制等错误会直接展示。
+插件使用 OpenCode 保存的 OAuth 会话调用 OpenAI 使用量 API（`/backend-api/wham/usage`）。界面会根据 API 返回的窗口时长生成标签，而不是假设固定为小时或周度窗口。身份验证、权限和频率限制等错误会直接展示。

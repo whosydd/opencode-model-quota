@@ -216,31 +216,31 @@ export function formatOpenAIMessage(snapshot: OpenAISnapshot): string {
   const entries: QuotaEntry[] = []
   const group = snapshot.label
 
-  if (snapshot.windows.hourly) {
+  if (snapshot.windows.primary) {
     entries.push({
-      name: "Hourly",
+      name: snapshot.windows.primary.label,
       group,
-      label: "Hourly:",
-      percentRemaining: snapshot.windows.hourly.percentRemaining,
-      resetTimeIso: snapshot.windows.hourly.resetTimeIso,
+      label: `${snapshot.windows.primary.label}:`,
+      percentRemaining: snapshot.windows.primary.percentRemaining,
+      resetTimeIso: snapshot.windows.primary.resetTimeIso,
     })
   }
 
-  if (snapshot.windows.weekly) {
+  if (snapshot.windows.secondary) {
     entries.push({
-      name: "Weekly",
+      name: snapshot.windows.secondary.label,
       group,
-      label: "Weekly:",
-      percentRemaining: snapshot.windows.weekly.percentRemaining,
-      resetTimeIso: snapshot.windows.weekly.resetTimeIso,
+      label: `${snapshot.windows.secondary.label}:`,
+      percentRemaining: snapshot.windows.secondary.percentRemaining,
+      resetTimeIso: snapshot.windows.secondary.resetTimeIso,
     })
   }
 
   if (snapshot.windows.codeReview) {
     entries.push({
-      name: "Code Review",
+      name: snapshot.windows.codeReview.label,
       group,
-      label: "Code Review:",
+      label: `${snapshot.windows.codeReview.label}:`,
       percentRemaining: snapshot.windows.codeReview.percentRemaining,
       resetTimeIso: snapshot.windows.codeReview.resetTimeIso,
     })

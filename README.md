@@ -12,7 +12,7 @@ OpenCode TUI plugin for checking model or subscription quota.
 
 - **OpenCode Go** — rolling, weekly, and monthly subscription quota (via HTML scraping)
 - **GitHub Copilot** — monthly premium request quota, allowance, and overage
-- **OpenAI** — hourly, weekly, and code-review rate limit windows
+- **OpenAI** — rate-limit windows derived from the current OpenAI session (for example `5h`, `7d`, and code review when available)
 
 Providers only run when their credentials are configured. Unconfigured providers are skipped silently.
 
@@ -26,18 +26,18 @@ The command always fetches fresh data.
 
 ## Output
 
-Quota is displayed as a card-based dialog with progress bars, percentages, and reset timers:
+Quota is displayed as a grouped text dialog with progress bars, percentages, and reset timers:
 
 ```
-+--------------------------------------------+
-| [OpenCode Go] [subscription]               |
-|                                            |
-| Rolling: [########------------]  33% 5m    |
-| Weekly:  [############--------]  50% 3d 2h |
-| Monthly: [####################]  83% 12d   |
-+--------------------------------------------+
+→ [OpenCode Go]
+Rolling:            5m
+████████████████░░░░░░░░   67% left
+Weekly:          3d 2h
+████████████░░░░░░░░░░░░   50% left
+Monthly:          12d
+████████░░░░░░░░░░░░░░░░   33% left
 
-                Updated: Apr 27, 2:30 PM
+Updated: Apr 27, 2:30 PM
 ```
 
 ## Install
@@ -54,8 +54,7 @@ Add the plugin to your `tui.json` — OpenCode will automatically install and lo
         "opencodeGo": {
           "workspaceId": "wrk_your_workspace_id",
           "authCookie": "{env:OPENCODE_GO_AUTH_COOKIE}"
-        },
-        "githubCopilot": "configured through OpenCode login"
+        }
       }
     ]
   ]
@@ -118,4 +117,4 @@ The plugin uses the Copilot quota snapshot endpoint (`/copilot_internal/user`) w
 
 ## OpenAI Data Sources
 
-The plugin fetches from the OpenAI usage API (`/backend-api/wham/usage`) using the OAuth session stored by OpenCode. Auth, permission, and rate-limit errors are surfaced directly.
+The plugin fetches from the OpenAI usage API (`/backend-api/wham/usage`) using the OAuth session stored by OpenCode. The UI labels each window from the API's reported duration instead of assuming fixed hourly or weekly names. Auth, permission, and rate-limit errors are surfaced directly.
