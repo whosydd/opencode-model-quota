@@ -1,7 +1,6 @@
 import {
   loadOpenCodeGoConfig,
   type OpenCodeGoConfig,
-  type OpenCodeGoConfigOverrides,
 } from "./config.js"
 
 type OpenCodeGoWindow = {
@@ -16,10 +15,8 @@ export type OpenCodeGoSnapshot = {
   fetchedAt: number
 }
 
-export async function getOpenCodeGoQuota(
-  overrides?: OpenCodeGoConfigOverrides,
-): Promise<OpenCodeGoSnapshot> {
-  const config = loadOpenCodeGoConfig(overrides)
+export async function getOpenCodeGoQuota(): Promise<OpenCodeGoSnapshot> {
+  const config = loadOpenCodeGoConfig()
   return fetchOpenCodeGoQuota(config)
 }
 
@@ -30,7 +27,7 @@ async function fetchOpenCodeGoQuota(config: OpenCodeGoConfig): Promise<OpenCodeG
       headers: {
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         Cookie: `auth=${config.authCookie}`,
-        "User-Agent": "opencode-model-quota/0.2.0",
+        "User-Agent": "opencode-quota/0.3.0",
       },
     })
   } catch {

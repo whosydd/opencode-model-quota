@@ -1,8 +1,5 @@
 import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import {
-  loadOptionalOpenCodeGoConfig,
-  type PluginConfigOverrides,
-} from "./config.js"
+import { loadOptionalOpenCodeGoConfig } from "./config.js"
 import {
   formatGitHubCopilotMessage,
   formatOpenAIMessage,
@@ -15,33 +12,28 @@ import { getOpenAIQuota } from "./openai.js"
 import { getOpenCodeGoQuota } from "./opencode-go.js"
 import { readAuthFileCached, resolveOpenAIAuth, resolveCopilotAuth } from "./opencode-auth.js"
 
-const COMMAND_VALUE = "model-quota.show"
+const COMMAND_VALUE = "quota.show"
 const LOADING_FRAMES = ["○", "◐", "◑", "●"]
 
 let activeQuotaRequestId = 0
 let stopActiveLoading: (() => void) | undefined
 
-const tui: TuiPlugin = async (api, options) => {
-  const configOverrides = options as PluginConfigOverrides | undefined
-
+const tui: TuiPlugin = async (api) => {
   api.command.register(() => [
     {
-      title: "Show model quota",
+      title: "Show quota",
       value: COMMAND_VALUE,
       category: "Quota",
       suggested: true,
       slash: {
-        name: "model-quota",
+        name: "quota",
       },
-      onSelect: () => showQuotaDialog(api, configOverrides),
+      onSelect: () => showQuotaDialog(api),
     },
   ])
 }
 
-async function showQuotaDialog(
-  api: Parameters<TuiPlugin>[0],
-  configOverrides: PluginConfigOverrides | undefined,
-): Promise<void> {
+async function showQuotaDialog(api: Parameters<TuiPlugin>[0]): Promise<void> {
   stopActiveLoading?.()
 
   const requestId = ++activeQuotaRequestId
@@ -69,7 +61,7 @@ async function showQuotaDialog(
   const renderLoadingDialog = () => {
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Quota",
+        title: "Quota",
         message: formatQuotaLoadingMessage(LOADING_FRAMES[loadingFrame]),
         onConfirm: closeLoadingDialog,
       }),
@@ -86,14 +78,14 @@ async function showQuotaDialog(
   }, 180)
 
   try {
-    const message = await buildQuotaMessage(configOverrides)
+    const message = await buildQuotaMessage()
 
     if (activeQuotaRequestId !== requestId) return
     stopLoading()
 
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Quota",
+        title: "Quota",
         message,
         onConfirm: () => api.ui.dialog.clear(),
       }),
@@ -105,7 +97,7 @@ async function showQuotaDialog(
 
     api.ui.dialog.replace(() =>
       api.ui.DialogAlert({
-        title: "Model Quota Error",
+        title: "Quota Error",
         message: error instanceof Error ? error.message : "Failed to fetch quota.",
         onConfirm: () => api.ui.dialog.clear(),
       }),
@@ -115,15 +107,13 @@ async function showQuotaDialog(
   }
 }
 
-async function buildQuotaMessage(
-  configOverrides: PluginConfigOverrides | undefined,
-): Promise<string> {
+async function buildQuotaMessage(): Promise<string> {
   const tasks: Array<Promise<string>> = []
   const errors: string[] = []
 
   try {
-    if (loadOptionalOpenCodeGoConfig(configOverrides)) {
-      tasks.push(getOpenCodeGoQuota(configOverrides).then(formatOpenCodeGoMessage))
+    if (loadOptionalOpenCodeGoConfig()) {
+      tasks.push(getOpenCodeGoQuota().then(formatOpenCodeGoMessage))
     }
   } catch (error) {
     errors.push(errorMessage(error))
@@ -162,7 +152,7 @@ async function buildQuotaMessage(
     }
 
     throw new Error(
-      "No quota providers are configured. Set OpenCode Go credentials in tui.json or environment variables, and log in to GitHub Copilot and/or OpenAI through OpenCode.",
+      "No quota providers are configured. Set OpenCode Go credentials in environment variables, and log in to GitHub Copilot and/or OpenAI through OpenCode.",
     )
   }
 
