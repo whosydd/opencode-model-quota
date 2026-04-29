@@ -290,7 +290,9 @@ export function formatCount(value: number): string {
 function centerBlock(text: string): string {
   const lines = text.split("\n")
   const maxLineLength = lines.reduce((max, line) => Math.max(max, line.length), 0)
-  const leftPadding = Math.max(0, Math.floor((DIALOG_CONTENT_WIDTH - maxLineLength) / 2) + DIALOG_LEFT_INDENT)
+  const centeredPadding = Math.max(0, Math.floor((DIALOG_CONTENT_WIDTH - maxLineLength) / 2))
+  const availableIndent = Math.max(0, DIALOG_CONTENT_WIDTH - maxLineLength - centeredPadding)
+  const leftPadding = centeredPadding + Math.min(DIALOG_LEFT_INDENT, availableIndent)
 
   if (leftPadding === 0) return text
 

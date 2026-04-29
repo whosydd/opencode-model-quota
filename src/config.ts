@@ -8,9 +8,6 @@ export type OpenCodeGoConfig = {
   authCookie: string
 }
 
-export type PluginConfigOverrides = Record<string, unknown>
-export type OpenCodeGoConfigOverrides = PluginConfigOverrides
-
 export function loadOpenCodeGoConfig(): OpenCodeGoConfig {
   const config = loadOptionalOpenCodeGoConfig()
   if (config) return config

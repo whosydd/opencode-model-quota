@@ -1,8 +1,5 @@
 import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import {
-  loadOptionalOpenCodeGoConfig,
-  type PluginConfigOverrides,
-} from "./config.js"
+import { loadOptionalOpenCodeGoConfig } from "./config.js"
 import {
   formatGitHubCopilotMessage,
   formatOpenAIMessage,
@@ -21,9 +18,7 @@ const LOADING_FRAMES = ["○", "◐", "◑", "●"]
 let activeQuotaRequestId = 0
 let stopActiveLoading: (() => void) | undefined
 
-const tui: TuiPlugin = async (api, options) => {
-  const configOverrides = options as PluginConfigOverrides | undefined
-
+const tui: TuiPlugin = async (api) => {
   api.command.register(() => [
     {
       title: "Show quota",
@@ -33,15 +28,12 @@ const tui: TuiPlugin = async (api, options) => {
       slash: {
         name: "quota",
       },
-      onSelect: () => showQuotaDialog(api, configOverrides),
+      onSelect: () => showQuotaDialog(api),
     },
   ])
 }
 
-async function showQuotaDialog(
-  api: Parameters<TuiPlugin>[0],
-  configOverrides: PluginConfigOverrides | undefined,
-): Promise<void> {
+async function showQuotaDialog(api: Parameters<TuiPlugin>[0]): Promise<void> {
   stopActiveLoading?.()
 
   const requestId = ++activeQuotaRequestId
@@ -86,7 +78,7 @@ async function showQuotaDialog(
   }, 180)
 
   try {
-    const message = await buildQuotaMessage(configOverrides)
+    const message = await buildQuotaMessage()
 
     if (activeQuotaRequestId !== requestId) return
     stopLoading()
@@ -115,15 +107,13 @@ async function showQuotaDialog(
   }
 }
 
-async function buildQuotaMessage(
-  configOverrides: PluginConfigOverrides | undefined,
-): Promise<string> {
+async function buildQuotaMessage(): Promise<string> {
   const tasks: Array<Promise<string>> = []
   const errors: string[] = []
 
   try {
     if (loadOptionalOpenCodeGoConfig()) {
-      tasks.push(getOpenCodeGoQuota(configOverrides).then(formatOpenCodeGoMessage))
+      tasks.push(getOpenCodeGoQuota().then(formatOpenCodeGoMessage))
     }
   } catch (error) {
     errors.push(errorMessage(error))

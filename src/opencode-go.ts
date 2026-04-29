@@ -1,7 +1,6 @@
 import {
   loadOpenCodeGoConfig,
   type OpenCodeGoConfig,
-  type OpenCodeGoConfigOverrides,
 } from "./config.js"
 
 type OpenCodeGoWindow = {
@@ -16,9 +15,7 @@ export type OpenCodeGoSnapshot = {
   fetchedAt: number
 }
 
-export async function getOpenCodeGoQuota(
-  overrides?: OpenCodeGoConfigOverrides,
-): Promise<OpenCodeGoSnapshot> {
+export async function getOpenCodeGoQuota(): Promise<OpenCodeGoSnapshot> {
   const config = loadOpenCodeGoConfig()
   return fetchOpenCodeGoQuota(config)
 }
